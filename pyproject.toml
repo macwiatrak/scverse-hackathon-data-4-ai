@@ -19,9 +19,10 @@ urls.Documentation = "https://anndata-to-pytorch-dataloader.readthedocs.io/"
 urls.Source = "https://github.com/macwiatrak/anndata-to-pytorch-dataloader"
 urls.Home-page = "https://github.com/macwiatrak/anndata-to-pytorch-dataloader"
 dependencies = [
-    "anndata",
+    "anndata~=0.10.3",
     # for debug logging (referenced from the issue template)
-    "session-info"
+    "session-info",
+    "torch~=2.1.1",
 ]
 
 [project.optional-dependencies]
