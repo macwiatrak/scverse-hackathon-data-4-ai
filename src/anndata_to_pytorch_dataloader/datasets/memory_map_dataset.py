@@ -1,3 +1,4 @@
+# implementation taken from https://github.com/laminlabs/lamindb/blob/main/lamindb/dev/_mapped_dataset.py#L6
 from collections import Counter
 from typing import Any, Optional, Union
 
@@ -9,6 +10,9 @@ from torch.utils.data import Dataset
 
 class Registry:
     """Registry for storage backends."""
+
+    # TODO: add storage backends from
+    # https://github.com/laminlabs/lamindb/blob/main/lamindb/dev/storage/_backed_access.py
 
     def open(self, storage_backend: str, *args, **kwargs):
         """Open a storage backend."""
@@ -23,6 +27,11 @@ GroupTypes = [h5py.Group]
 
 class MemoryMapDataset(Dataset):
     """Dataset for memory mapped files."""
+
+    # TODO: add support for multiple file types
+    # TODO: test the dataset
+    # TODO: do speed comparisons against AnnLoader and AnnTorchLoader from scvi-tools
+    # TODO: add support for reading and using multiple files
 
     def __init__(
         self,
