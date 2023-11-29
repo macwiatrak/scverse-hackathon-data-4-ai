@@ -84,15 +84,9 @@ class AnnDataModule(LightningDataModule):
 
     def __init__(self, splitted_data_lists, data_names, batch_size=32, shuffle: bool = True, num_workers=1):
         super(AnnDataModule, self).__init__()
-        self.has_test = False
-        self.has_val = False
 
-        if len(splitted_data_lists) > 1:
-            self.has_val = True
-            self.val_data_l = splitted_data_lists[1]
-        if len(splitted_data_lists) == 3:
-            self.has_test = True
-            self.test_data_l = splitted_data_lists[2]
+        self.test_data_l = splitted_data_lists[2]
+        self.val_data_l = splitted_data_lists[1]
         self.train_data_l = splitted_data_lists[0]
 
         self.data_names = data_names
@@ -182,11 +176,8 @@ class SimpleDataModule(LightningDataModule):
     def __init__(self, data_list: List, batch_size=32, shuffle: bool = True, num_workers=1):
         super(SimpleDataModule, self).__init__()
 
-        if len(data_list) > 1:
-            self.val_data = data_list[1]
-        if len(data_list) == 3:
-            self.test_data = data_list[2]
-
+        self.test_data = data_list[2]
+        self.val_data = data_list[1]
         self.train_data = data_list[0]
 
         self.batch_size = batch_size
@@ -341,6 +332,8 @@ def setup_simple_datamodule(
 def split_data(
     data_list: list, data_names: list, train_frac: float, val_frac: float, test_frac: float, random_state: int
 ) -> List[List]:
+    """Always returns train, test and validation sets"""
+
     if "X" in data_names:
         full_length = data_list[data_names.index("X")].shape[0]
     elif sum([n.startswith("obs") for n in data_names]) > 0:
@@ -349,26 +342,25 @@ def split_data(
     else:
         raise (("Data doesn't contain fields along the `obs` axis,", " can't split into different sets"))
 
+    # All three provided should add up to one
     if train_frac + val_frac + test_frac == 1:
         train_idx, test_val_idx = train_test_split(range(full_length), train_size=train_frac, random_state=random_state)
         val_idx, test_idx = train_test_split(test_val_idx, test_size=test_frac / (test_frac + val_frac))
-
-        index_list = [train_idx, val_idx, test_idx]
-
-    elif (
-        (train_frac + val_frac == 1)
-        or (train_frac + test_frac == 1)
-        or (train_frac + val_frac + test_frac == train_frac)
-    ):
+    # Only train frac provided
+    elif train_frac + val_frac + test_frac == train_frac:
         train_idx, test_val_idx = train_test_split(range(full_length), train_size=train_frac, random_state=random_state)
-        index_list = [train_idx, test_val_idx]
+        val_idx, test_idx = train_test_split(test_val_idx, test_size=0.5)
+    # No test frac
+    elif test_frac == 0 & train_frac != 0 and val_frac != 0:
+        train_idx, test_val_idx = train_test_split(range(full_length), train_size=train_frac, random_state=random_state)
+        val_idx, test_idx = train_test_split(test_val_idx, test_size=val_frac / (1 - train_frac + val_frac))
+    # No val frac
+    elif test_frac != 0 & train_frac != 0 and val_frac == 0:
+        train_idx, test_val_idx = train_test_split(range(full_length), train_size=train_frac, random_state=random_state)
+        test_idx, val_idx = train_test_split(test_val_idx, test_size=test_frac / (1 - train_frac + test_frac))
     else:
-        raise (
-            (
-                "Train, test and validation fraction should add up to one,",
-                " or only train or train and either val or test fraction should be provided",
-            )
-        )
+        raise (("Please supple valid train, test and validation fractions. With at least a training fraction.",))
+    index_list = [train_idx, val_idx, test_val_idx]
 
     train_data = []
     val_data = []
@@ -377,17 +369,12 @@ def split_data(
         if (data_names[i] == "X") or (data_names[i].startswith("obs")):
             train_data.append(data[index_list[0]])
             val_data.append(data[index_list[1]])
+            test_data.append(data[index_list[2]])
         else:
             train_data.append(data)
             val_data.append(data)
-        if len(index_list) == 3:
-            test_data.append(data[index_list[2]])
-            if (data_names[i] == "X") or (data_names[i].startswith("obs")):
-                test_data.append(data)
-    if len(index_list) == 3:
-        return [train_data, val_data, test_data]
-    else:
-        return [train_data, val_data]
+            test_data.append(data)
+    return [train_data, val_data, test_data]
 
 
 def extract_from_adata(
