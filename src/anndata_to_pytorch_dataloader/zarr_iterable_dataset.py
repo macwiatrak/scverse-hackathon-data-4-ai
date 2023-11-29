@@ -1,4 +1,5 @@
 import math
+import time
 from typing import Callable
 
 import pandas as pd
@@ -80,5 +81,8 @@ def main():
         # TODO: add collate_fn
     )
 
-    for batch in dataloader:
-        print(batch)
+    dataloader = iter(dataloader)
+    for _ in range(10):
+        start = time.time()
+        _ = next(dataloader)
+        print("Time it took for a batch:", time.time() - start)
