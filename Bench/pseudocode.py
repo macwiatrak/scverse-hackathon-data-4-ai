@@ -3,6 +3,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 import numpy as np
 from typing import Union, List
+import scanpy as sc
 
 
 class AnnDataModule(LightningDataModule):
@@ -11,7 +12,6 @@ class AnnDataModule(LightningDataModule):
         self.train = train
         self.val = val
         self.test = test
-        self.transformer = trained_transformer
         self.batch_size = batch_size
         self.num_workers = num_workers
 
@@ -42,16 +42,6 @@ class AnnDataModule(LightningDataModule):
     def predict_dataloader(self):
         return self.train_dataloader(), self.val_dataloader(), self.test_dataloader()
 
-    def state_dict(self):
-        # track whatever you want here
-        # will be saved upon checkpointing
-        state = {"trained_transformer": self.scaler}
-        return state
-
-    def load_state_dict(self, state_dict):
-        # restore the state based on what you tracked in (def state_dict)
-        self.scaler = state_dict["trained_transformer"]
-
 
 class AnnDataSet(Dataset):
     def __init__(self, X, y):
@@ -76,19 +66,32 @@ class AnnDataSet(Dataset):
 def setup_anndata_datamodule(
     adata,
     train_frac: float = 0.0,
+    val_frac: float = 0.0,
+    test_frac: float = 0.0,
+    include_exprs: bool = True,
+    obs_fields: List[str] = None,
+    var_fields: List[str] = None,
+    layers_fields: List[str] = None,
+    target: dict[str, str] = None,
     batch_size=512,
     num_workers=1,
     cofactor_transform=True,
     random_state=11,
 ):
+    anndata = adata.copy()
+
     # Split into train val test
+    if train_frac + val_frac + test_frac > 0:
+        adata_list = split_adata(adata=anndata, train_frac=train_frac, val_frac=val_frac, test_frac=test_frac)
+    else:
+        adata_list = [anndata]
 
     # Get features and target
 
     # Optional
     # Train scaler on training data
 
-    # Pass to each get_cytof_dataset function
+    dataset_list = [AnnDatasetFromAnnData(adt) for adt in adata_list]
 
     ds_train = AnnDataSet(X=X_train, y=y_train, scaler=trained_scaler)
 
@@ -97,10 +100,30 @@ def setup_anndata_datamodule(
     ds_test = AnnDataSet(X=X_test, y=y_test, scaler=trained_scaler)
 
     return AnnDataModule(
-        train=ds_train,
-        val=ds_val,
-        test=ds_test,
-        trained_scaler=trained_scaler,
+        datasets=dataset_list,
         batch_size=batch_size,
         num_workers=num_workers,
     )
+
+
+def split_adata(adata, train_frac, val_frac, test_frac):
+    full_length = len(adata)
+
+    if train_frac + val_frac + test_frac == 1:
+        train_adata = sc.pp.subsample(adata, fraction=train_frac, copy=True)
+        rest = adata[adata.obs_names.isin(train_adata.obs_names), :]
+
+        val_adata = sc.pp.subsample(rest, n_obs=int(val_frac * full_length), copy=True)
+        test_adata = rest[rest.obs_names.isin(val_adata.obs_names), :]
+
+        return [train_adata, val_adata, test_adata]
+
+    elif (
+        (train_frac + val_frac == 1)
+        or (train_frac + test_frac == 1)
+        or (train_frac + val_frac + test_frac == train_frac)
+    ):
+        train_adata = sc.pp.subsample(adata, fraction=train_frac, copy=True)
+        rest_adata = adata[adata.obs_names.isin(train_adata.obs_names), :]
+
+        return [train_adata, rest_adata]
