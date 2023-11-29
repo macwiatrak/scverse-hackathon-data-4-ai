@@ -345,22 +345,28 @@ def split_data(
     # All three provided should add up to one
     if train_frac + val_frac + test_frac == 1:
         train_idx, test_val_idx = train_test_split(range(full_length), train_size=train_frac, random_state=random_state)
-        val_idx, test_idx = train_test_split(test_val_idx, test_size=test_frac / (test_frac + val_frac))
+        val_idx, test_idx = train_test_split(
+            test_val_idx, test_size=test_frac / (test_frac + val_frac), random_state=random_state
+        )
     # Only train frac provided
     elif train_frac + val_frac + test_frac == train_frac:
         train_idx, test_val_idx = train_test_split(range(full_length), train_size=train_frac, random_state=random_state)
-        val_idx, test_idx = train_test_split(test_val_idx, test_size=0.5)
+        val_idx, test_idx = train_test_split(test_val_idx, test_size=0.5, random_state=random_state)
     # No test frac
     elif test_frac == 0 & train_frac != 0 and val_frac != 0:
         train_idx, test_val_idx = train_test_split(range(full_length), train_size=train_frac, random_state=random_state)
-        val_idx, test_idx = train_test_split(test_val_idx, test_size=val_frac / (1 - train_frac + val_frac))
+        val_idx, test_idx = train_test_split(
+            test_val_idx, test_size=val_frac / (1 - train_frac + val_frac), random_state=random_state
+        )
     # No val frac
     elif test_frac != 0 & train_frac != 0 and val_frac == 0:
         train_idx, test_val_idx = train_test_split(range(full_length), train_size=train_frac, random_state=random_state)
-        test_idx, val_idx = train_test_split(test_val_idx, test_size=test_frac / (1 - train_frac + test_frac))
+        test_idx, val_idx = train_test_split(
+            test_val_idx, test_size=test_frac / (1 - train_frac + test_frac), random_state=random_state
+        )
     else:
         raise (("Please supple valid train, test and validation fractions. With at least a training fraction.",))
-    index_list = [train_idx, val_idx, test_val_idx]
+    index_list = [train_idx, val_idx, test_idx]
 
     train_data = []
     val_data = []
