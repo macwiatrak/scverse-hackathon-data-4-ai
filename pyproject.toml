@@ -21,8 +21,10 @@ urls.Home-page = "https://github.com/macwiatrak/anndata-to-pytorch-dataloader"
 dependencies = [
     "anndata~=0.10.3",
     # for debug logging (referenced from the issue template)
+    "scanpy~=1.9.6",
     "session-info",
     "torch~=2.1.1",
+    "zarr~=2.16.1",
 ]
 
 [project.optional-dependencies]
